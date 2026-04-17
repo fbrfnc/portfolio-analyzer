@@ -1,0 +1,33 @@
+A. Requisiti Funzionali (cosa deve fare il software)
+
+1 - Gestione del portafoglio (inserimento, modifica, eliminazione posizioni)
+3 - Importazione automatica o semi-automatica dei dati (CSV, Excel, API broker)
+1 - Recupero prezzi e dati fondamentali (storici e real-time)
+1 - Calcolo metriche di performance
+1 - Calcolo metriche di rischio
+2 - Analisi di allocazione e diversificazione
+1 - Confronto con benchmark (es. MSCI World, Euro Stoxx 50, indice personalizzato)
+2 - Report e visualizzazioni (dashboard, grafici, tabelle esportabili)
+2 - Suggerimenti di ribilanciamento / alert
+
+B. Requisiti Non Funzionali
+
+3 - Sicurezza e privacy (GDPR-compliant, dato che sei in area UE)
+2 - Prestazioni (gestione portafogli anche con centinaia di posizioni)
+1 - Usabilità (interfaccia intuitiva)
+1 - Manutenibilità e scalabilità
+0 - Tecnologia aperta / costi di licenza
+1 - Multi-valuta (EUR, USD, ecc.)
+
+C. Requisiti Tecnici e Architetturali
+
+1 - Linguaggio / framework
+1 - Database
+1 - Fonti dati (API gratuite/pagate)
+1 - Deploy (desktop, web, mobile, cloud)
+
+D. Requisiti di Business / Utente
+
+1 - Frequenza di aggiornamento (giornaliero, real-time?)
+3 - Livello di automazione desiderato
+1 - Utenti (solo tu o multi-utente?)
