@@ -2,18 +2,20 @@ import streamlit as st
 import pandas as pd
 import yfinance as yf
 import numpy as np
-from datetime import datetime
+from datetime import datetime, timedelta
 from app.config import APP_TITLE, APP_ICON, RISK_FREE_RATE
 from app.data.database import SessionLocal
 from app.models.portfolio import PositionDB
 from sqlalchemy.orm import Session
+import plotly.express as px
+import plotly.graph_objects as go
 
 st.set_page_config(page_title=APP_TITLE, page_icon=APP_ICON, layout="wide")
 
 st.title(f"{APP_ICON} {APP_TITLE}")
-st.markdown("### Sprint 4 - Metriche di Performance e Rischio")
+st.markdown("### Sprint 4.5 - Metriche + Grafici")
 
-pagina = st.sidebar.radio("Sezione", ["🏠 Dashboard", "📋 Gestione Posizioni", "📊 Metriche"])
+pagina = st.sidebar.radio("Sezione", ["🏠 Dashboard", "📋 Gestione Posizioni", "📊 Metriche & Grafici"])
 
 # ====================== DASHBOARD ======================
 if pagina == "🏠 Dashboard":
@@ -168,12 +170,12 @@ elif pagina == "📋 Gestione Posizioni":
         else:
             st.info("Nessuna posizione da eliminare.")
 
-# ====================== METRICHE (corretto) ======================
+# ====================== METRICHE + GRAFICI ======================
 else:
     st.header("📊 Metriche di Performance e Rischio")
 
-    if st.button("Calcola Metriche", type="primary"):
-        with st.spinner("Calcolo metriche in corso..."):
+    if st.button("Calcola Metriche e Grafici", type="primary"):
+        with st.spinner("Calcolo e generazione grafici..."):
             try:
                 db = SessionLocal()
                 positions = db.query(PositionDB).all()
@@ -184,7 +186,8 @@ else:
                 else:
                     total_value = 0.0
                     total_cost = 0.0
-                    portfolio_returns = []   # Lista ponderata
+                    returns = []
+                    history_data = {}
 
                     for pos in positions:
                         try:
@@ -195,20 +198,20 @@ else:
                                 total_value += current_value
                                 total_cost += pos.quantity * pos.cost_basis
 
-                                # Rendimenti ponderati per peso posizione
-                                weight = (pos.quantity * pos.cost_basis) / total_cost if total_cost > 0 else 0
-                                daily_ret = data['Close'].pct_change().dropna() * weight
-                                portfolio_returns.append(daily_ret)
+                                daily_ret = data['Close'].pct_change().dropna()
+                                returns.append(daily_ret)
+
+                                # Salva storico per grafici
+                                history_data[pos.ticker] = data['Close']
                         except:
                             pass
 
                     if total_cost > 0:
                         total_return_pct = (total_value - total_cost) / total_cost * 100
 
-                        if portfolio_returns:
-                            # Volatilità corretta del portafoglio
-                            all_port_returns = pd.concat(portfolio_returns, axis=1).sum(axis=1)
-                            volatility = all_port_returns.std() * np.sqrt(252) * 100
+                        if returns:
+                            all_returns = pd.concat(returns)
+                            volatility = all_returns.std() * np.sqrt(252) * 100
                             sharpe = ((total_return_pct / 100) - RISK_FREE_RATE) / (volatility / 100) if volatility > 0 else 0
 
                             col1, col2, col3 = st.columns(3)
@@ -221,7 +224,37 @@ else:
 
                             st.metric("CAGR (approssimativo)", f"{total_return_pct:.1f}%")
 
-            except Exception as e:
-                st.error(f"Errore calcolo metriche: {e}")
+                    # ==================== GRAFICI ====================
+                    st.subheader("Grafici")
 
-st.caption("Sprint 4 completato - Volatilità corretta")
+                    # Grafico 1: Evoluzione valore portafoglio (approssimativo)
+                    if history_data:
+                        # Creiamo un indice temporale comune
+                        dates = pd.date_range(start=max([df.index.min() for df in history_data.values()]),
+                                              end=min([df.index.max() for df in history_data.values()]), freq='D')
+                        
+                        portfolio_value = pd.Series(0, index=dates)
+                        for ticker, price_series in history_data.items():
+                            # Trova la posizione corrispondente
+                            pos = next((p for p in positions if p.ticker == ticker), None)
+                            if pos:
+                                portfolio_value += price_series.reindex(dates, method='ffill') * pos.quantity
+
+                        fig = go.Figure()
+                        fig.add_trace(go.Scatter(x=portfolio_value.index, y=portfolio_value.values, 
+                                               mode='lines', name='Valore Portafoglio'))
+                        fig.update_layout(title="Evoluzione Valore Portafoglio", xaxis_title="Data", yaxis_title="Valore (€)")
+                        st.plotly_chart(fig, use_container_width=True)
+
+                    # Grafico 2: Allocazione attuale (a torta)
+                    labels = [p.ticker for p in positions]
+                    values = [p.quantity * yf.Ticker(p.ticker).history(period="1d")['Close'].iloc[-1] 
+                              for p in positions if not yf.Ticker(p.ticker).history(period="1d").empty]
+
+                    fig2 = px.pie(names=labels, values=values, title="Allocazione Portafoglio")
+                    st.plotly_chart(fig2, use_container_width=True)
+
+            except Exception as e:
+                st.error(f"Errore: {e}")
+
+st.caption("Sprint 4.5 - Metriche + Grafici completati")
