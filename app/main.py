@@ -4,11 +4,14 @@ import yfinance as yf
 import numpy as np
 from datetime import datetime, timedelta
 from app.config import APP_TITLE, APP_ICON, RISK_FREE_RATE
-from app.data.database import SessionLocal
+from app.data.database import SessionLocal, init_db
 from app.models.portfolio import PositionDB
 from sqlalchemy.orm import Session
 import plotly.express as px
 import plotly.graph_objects as go
+
+# Inizializzazione database robusta
+init_db()
 
 st.set_page_config(page_title=APP_TITLE, page_icon=APP_ICON, layout="wide")
 

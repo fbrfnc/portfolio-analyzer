@@ -11,6 +11,6 @@ if (-not (Test-Path "venv")) {
 }
 
 # init DB
-python -c "from app.data.db import init_db; init_db()"
+python -c "from app.data.database import init_db; init_db()"
 
 streamlit run app/main.py --server.headless true
