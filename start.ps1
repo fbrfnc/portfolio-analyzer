@@ -1,7 +1,8 @@
-# start.ps1 (root del repo)
+# start.ps1 (nella root)
 $scriptPath = Split-Path -Parent $MyInvocation.MyCommand.Path
-cd $scriptPath
+Set-Location $scriptPath
 
+# Attiva venv (crea se non esiste)
 if (-not (Test-Path "venv")) {
     py -3.12 -m venv venv
     .\venv\Scripts\Activate.ps1
@@ -10,7 +11,14 @@ if (-not (Test-Path "venv")) {
     .\venv\Scripts\Activate.ps1
 }
 
-# init DB
-python -c "from app.data.database import init_db; init_db()"
+# Inizializza DB esplicitamente
+python -c "
+import sys
+sys.path.insert(0, '.')
+from app.data.db import init_db
+init_db()
+print('Database inizializzato.')
+"
 
-streamlit run app/main.py --server.headless true
+# Avvia Streamlit
+streamlit run app/main.py --server.headless true --server.port 8501
