@@ -1,6 +1,7 @@
 import os
 import sys
 import subprocess
+import logging
 
 def main():
     print("Avvio Portfolio Analyzer...")
@@ -26,6 +27,7 @@ def main():
         print("Applicazione avviata. Si dovrebbe aprire nel browser.")
     except Exception as e:
         print(f"Errore durante l'avvio: {e}")
+        logging.error(str(e))
         input("Premi Invio per chiudere...")
 
 if __name__ == "__main__":

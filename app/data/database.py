@@ -1,6 +1,7 @@
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 from pathlib import Path
+import logging
 from app.config import DB_PATH
 from app.models.portfolio import Base, PortfolioDB
 
@@ -25,6 +26,7 @@ def init_db():
         return True
     except Exception as e:
         print(f"Errore inizializzazione database: {e}")
+        logging.error(str(e))
         return False
 
 def get_db():

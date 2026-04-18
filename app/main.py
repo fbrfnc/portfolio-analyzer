@@ -1,4 +1,5 @@
 import streamlit as st
+import logging
 import pandas as pd
 import yfinance as yf
 import numpy as np
@@ -43,8 +44,8 @@ if pagina == "🏠 Dashboard":
                         price = yf.Ticker(pos.ticker).history(period="1d")['Close'].iloc[-1]
                         total_value += price * pos.quantity
                         total_cost += pos.quantity * pos.cost_basis
-                    except:
-                        pass
+                    except (yf.YFinanceError, ValueError) as e:
+                        st.error(str(e))
 
                 if total_cost > 0:
                     total_return = ((total_value - total_cost) / total_cost) * 100
@@ -57,6 +58,7 @@ if pagina == "🏠 Dashboard":
 
             except Exception as e:
                 st.error(f"Errore: {e}")
+                logging.error(str(e))
 
 # ====================== GESTIONE POSIZIONI ======================
 elif pagina == "📋 Gestione Posizioni":
