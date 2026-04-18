@@ -1,24 +1,31 @@
-from sqlalchemy import create_engine, text
+from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 from pathlib import Path
 from app.config import DB_PATH
 from app.models.portfolio import Base, PortfolioDB
 
+# Assicura che la cartella data esista
+DB_PATH.parent.mkdir(parents=True, exist_ok=True)
+
 engine = create_engine(f"sqlite:///{DB_PATH}", echo=False)
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
 def init_db():
-    """Crea tutte le tabelle"""
-    Base.metadata.create_all(bind=engine)
-    
-    # Crea portafoglio di default se non esiste
-    with SessionLocal() as session:
-        if not session.query(PortfolioDB).first():
-            default_portfolio = PortfolioDB(name="Principale", currency="EUR")
-            session.add(default_portfolio)
-            session.commit()
-    
-    print("✅ Database inizializzato con successo (Sprint 1)")
+    """Inizializzazione robusta del database"""
+    try:
+        Base.metadata.create_all(bind=engine)
+        
+        with SessionLocal() as session:
+            if not session.query(PortfolioDB).first():
+                default = PortfolioDB(name="Principale", currency="EUR")
+                session.add(default)
+                session.commit()
+        
+        print("✅ Database inizializzato con successo (Sprint 1.5)")
+        return True
+    except Exception as e:
+        print(f"❌ Errore inizializzazione database: {e}")
+        return False
 
 def get_db():
     db = SessionLocal()

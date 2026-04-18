@@ -32,7 +32,7 @@ elif pagina == "📋 Gestione Posizioni":
 
     tab1, tab2 = st.tabs(["➕ Aggiungi Posizione", "📋 Lista Posizioni"])
 
-    # === TAB 1: Aggiungi Posizione ===
+    # TAB 1: Aggiungi
     with tab1:
         with st.form("nuova_posizione", clear_on_submit=True):
             col1, col2 = st.columns(2)
@@ -44,7 +44,7 @@ elif pagina == "📋 Gestione Posizioni":
                 quantity = st.number_input("Quantità *", min_value=0.0001, format="%.4f", value=1.0)
                 cost_basis = st.number_input("Costo Medio (€) *", min_value=0.01, format="%.4f")
                 currency = st.selectbox("Valuta", ["EUR", "USD"])
-                category = st.text_input("Categoria (opzionale)", placeholder="Tech, Difesa, Energia...")
+                category = st.text_input("Categoria (opzionale)")
 
             submitted = st.form_submit_button("💾 Salva Posizione", type="primary")
             
@@ -67,13 +67,13 @@ elif pagina == "📋 Gestione Posizioni":
                         db.add(nuova_pos)
                         db.commit()
                         st.success(f"✅ Posizione {ticker} salvata correttamente!")
+                        st.rerun()
                     except Exception as e:
-                        st.error(f"Errore durante il salvataggio: {e}")
+                        st.error(f"Errore: {str(e)}")
                     finally:
                         db.close()
-                        st.rerun()
 
-    # === TAB 2: Lista Posizioni ===
+    # TAB 2: Lista
     with tab2:
         st.subheader("Posizioni Attuali")
         db: Session = SessionLocal()
@@ -90,9 +90,8 @@ elif pagina == "📋 Gestione Posizioni":
                 "Valuta": p.currency,
                 "Categoria": p.category or "-"
             } for p in posizioni])
-            
             st.dataframe(df, use_container_width=True, hide_index=True)
         else:
             st.info("Nessuna posizione presente. Aggiungine una dalla scheda 'Aggiungi Posizione'.")
 
-st.caption("Sprint 1 - Gestione Posizioni CRUD base completata")
+st.caption("Sprint 1 completato - CRUD base delle posizioni")
