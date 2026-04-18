@@ -1,8 +1,9 @@
 import streamlit as st
 import pandas as pd
 import yfinance as yf
+import numpy as np
 from datetime import datetime
-from app.config import APP_TITLE, APP_ICON
+from app.config import APP_TITLE, APP_ICON, RISK_FREE_RATE
 from app.data.database import SessionLocal
 from app.models.portfolio import PositionDB
 from sqlalchemy.orm import Session
@@ -10,20 +11,50 @@ from sqlalchemy.orm import Session
 st.set_page_config(page_title=APP_TITLE, page_icon=APP_ICON, layout="wide")
 
 st.title(f"{APP_ICON} {APP_TITLE}")
-st.markdown("### Sprint 3 - Valore Corrente + CRUD Completo")
+st.markdown("### Sprint 4 - Metriche di Performance e Rischio")
 
-pagina = st.sidebar.radio("Sezione", ["🏠 Dashboard", "📋 Gestione Posizioni", "📈 Valore Corrente"])
+pagina = st.sidebar.radio("Sezione", ["🏠 Dashboard", "📋 Gestione Posizioni", "📊 Metriche"])
 
+# ====================== DASHBOARD ======================
 if pagina == "🏠 Dashboard":
     st.header("Dashboard Principale")
-    st.info("Valori reali e metriche nello Sprint 4")
 
+    if st.button("🔄 Aggiorna Dashboard", type="primary"):
+        with st.spinner("Aggiornamento in corso..."):
+            try:
+                db = SessionLocal()
+                positions = db.query(PositionDB).all()
+                db.close()
+
+                total_value = 0.0
+                total_cost = 0.0
+
+                for pos in positions:
+                    try:
+                        price = yf.Ticker(pos.ticker).history(period="1d")['Close'].iloc[-1]
+                        total_value += price * pos.quantity
+                        total_cost += pos.quantity * pos.cost_basis
+                    except:
+                        pass
+
+                if total_cost > 0:
+                    total_return = ((total_value - total_cost) / total_cost) * 100
+                    st.metric("Valore Portafoglio", f"€ {total_value:,.2f}", f"{total_return:.1f}%")
+                    st.metric("Rendimento Totale", f"{total_return:.2f}%")
+                    st.metric("Numero Posizioni", len(positions))
+                    st.success("Dashboard aggiornata")
+                else:
+                    st.info("Nessuna posizione nel portafoglio")
+
+            except Exception as e:
+                st.error(f"Errore: {e}")
+
+# ====================== GESTIONE POSIZIONI ======================
 elif pagina == "📋 Gestione Posizioni":
     st.header("Gestione Posizioni")
 
     tab1, tab2, tab3, tab4 = st.tabs(["➕ Aggiungi", "📋 Lista", "✏️ Modifica", "🗑️ Elimina"])
 
-    # 1. Aggiungi
     with tab1:
         with st.form("add_position", clear_on_submit=True):
             col1, col2 = st.columns(2)
@@ -58,7 +89,6 @@ elif pagina == "📋 Gestione Posizioni":
                     finally:
                         db.close()
 
-    # 2. Lista
     with tab2:
         st.subheader("Lista Posizioni")
         db = SessionLocal()
@@ -78,17 +108,14 @@ elif pagina == "📋 Gestione Posizioni":
         else:
             st.info("Nessuna posizione presente.")
 
-    # 3. Modifica (NUOVA)
     with tab3:
         st.subheader("✏️ Modifica Posizione")
         db = SessionLocal()
         positions = db.query(PositionDB).all()
         db.close()
-
         if positions:
             selected_ticker = st.selectbox("Seleziona posizione da modificare", [p.ticker for p in positions])
             
-            # Carica i dati attuali
             db = SessionLocal()
             pos = db.query(PositionDB).filter(PositionDB.ticker == selected_ticker).first()
             db.close()
@@ -102,31 +129,29 @@ elif pagina == "📋 Gestione Posizioni":
                 if st.form_submit_button("💾 Salva Modifiche", type="primary"):
                     try:
                         db = SessionLocal()
-                        pos_to_update = db.query(PositionDB).filter(PositionDB.ticker == selected_ticker).first()
-                        if pos_to_update:
-                            pos_to_update.name = new_name
-                            pos_to_update.quantity = new_quantity
-                            pos_to_update.cost_basis = new_cost_basis
-                            pos_to_update.category = new_category if new_category else None
+                        p = db.query(PositionDB).filter(PositionDB.ticker == selected_ticker).first()
+                        if p:
+                            p.name = new_name
+                            p.quantity = new_quantity
+                            p.cost_basis = new_cost_basis
+                            p.category = new_category if new_category.strip() else None
                             db.commit()
-                            st.success(f"✅ {selected_ticker} modificata con successo!")
+                            st.success(f"✅ {selected_ticker} modificata!")
                             st.rerun()
                     except Exception as e:
-                        st.error(f"Errore modifica: {e}")
+                        st.error(f"Errore: {e}")
                     finally:
                         db.close()
         else:
             st.info("Nessuna posizione da modificare.")
 
-    # 4. Elimina
     with tab4:
         st.subheader("🗑️ Elimina Posizione")
         db = SessionLocal()
         positions = db.query(PositionDB).all()
         db.close()
-
         if positions:
-            ticker_to_delete = st.selectbox("Seleziona posizione da eliminare", [p.ticker for p in positions])
+            ticker_to_delete = st.selectbox("Seleziona da eliminare", [p.ticker for p in positions])
             if st.button("🗑️ Elimina Posizione", type="secondary"):
                 try:
                     db = SessionLocal()
@@ -143,41 +168,64 @@ elif pagina == "📋 Gestione Posizioni":
         else:
             st.info("Nessuna posizione da eliminare.")
 
-# ====================== VALORE CORRENTE ======================
+# ====================== METRICHE (calcolo automatico) ======================
 else:
-    st.header("📈 Valore Corrente del Portafoglio")
+    st.header("📊 Metriche di Performance e Rischio")
 
-    if st.button("🔄 Aggiorna Prezzi", type="primary"):
-        with st.spinner("Scaricamento prezzi da yfinance..."):
-            try:
-                db = SessionLocal()
-                positions = db.query(PositionDB).all()
+    # Calcolo automatico al caricamento della pagina
+    with st.spinner("Calcolo automatico delle metriche..."):
+        try:
+            db = SessionLocal()
+            positions = db.query(PositionDB).all()
+            db.close()
+
+            if not positions:
+                st.warning("Nessuna posizione nel portafoglio")
+            else:
                 total_value = 0.0
-                rows = []
+                total_cost = 0.0
+                returns = []
 
                 for pos in positions:
                     try:
-                        ticker_data = yf.Ticker(pos.ticker)
-                        price = ticker_data.history(period="1d")['Close'].iloc[-1]
-                        current_value = price * pos.quantity
-                        total_value += current_value
+                        data = yf.Ticker(pos.ticker).history(period="1y")
+                        if not data.empty:
+                            current_price = data['Close'].iloc[-1]
+                            current_value = current_price * pos.quantity
+                            total_value += current_value
+                            total_cost += pos.quantity * pos.cost_basis
 
-                        rows.append({
-                            "Ticker": pos.ticker,
-                            "Nome": pos.name,
-                            "Quantità": pos.quantity,
-                            "Prezzo Attuale": round(price, 4),
-                            "Valore Corrente (€)": round(current_value, 2),
-                            "Costo Medio": pos.cost_basis,
-                            "Guadagno/Perdita (€)": round(current_value - pos.quantity * pos.cost_basis, 2)
-                        })
+                            daily_ret = data['Close'].pct_change().dropna()
+                            returns.append(daily_ret)
                     except:
-                        rows.append({"Ticker": pos.ticker, "Errore": "Prezzo non disponibile"})
+                        pass
 
-                st.success(f"Valore Totale Portafoglio: **€ {total_value:,.2f}**")
-                st.dataframe(pd.DataFrame(rows), use_container_width=True, hide_index=True)
+                if total_cost > 0:
+                    total_return_pct = (total_value - total_cost) / total_cost * 100
 
-            except Exception as e:
-                st.error(f"Errore: {e}")
+                    if returns:
+                        all_returns = pd.concat(returns)
+                        volatility = all_returns.std() * np.sqrt(252) * 100
+                        sharpe = ((total_return_pct / 100) - RISK_FREE_RATE) / (volatility / 100) if volatility > 0 else 0
 
-st.caption("Sprint 3 - Valore Corrente + CRUD completo con modifica")
+                        col1, col2, col3 = st.columns(3)
+                        with col1:
+                            st.metric("Valore Totale Portafoglio", f"€ {total_value:,.2f}", f"{total_return_pct:.1f}%")
+                        with col2:
+                            st.metric("Volatilità Annualizzata", f"{volatility:.1f}%")
+                        with col3:
+                            st.metric("Sharpe Ratio", f"{sharpe:.2f}")
+
+                        st.metric("CAGR (approssimativo)", f"{total_return_pct:.1f}%")
+
+                else:
+                    st.info("Impossibile calcolare le metriche")
+
+        except Exception as e:
+            st.error(f"Errore calcolo automatico: {e}")
+
+    # Pulsante per ricalcolare manualmente
+    if st.button("Ricalcola Metriche", type="primary"):
+        st.rerun()
+
+st.caption("Sprint 4 completato")
