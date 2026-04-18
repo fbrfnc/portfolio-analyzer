@@ -168,64 +168,60 @@ elif pagina == "📋 Gestione Posizioni":
         else:
             st.info("Nessuna posizione da eliminare.")
 
-# ====================== METRICHE (calcolo automatico) ======================
+# ====================== METRICHE (corretto) ======================
 else:
     st.header("📊 Metriche di Performance e Rischio")
 
-    # Calcolo automatico al caricamento della pagina
-    with st.spinner("Calcolo automatico delle metriche..."):
-        try:
-            db = SessionLocal()
-            positions = db.query(PositionDB).all()
-            db.close()
+    if st.button("Calcola Metriche", type="primary"):
+        with st.spinner("Calcolo metriche in corso..."):
+            try:
+                db = SessionLocal()
+                positions = db.query(PositionDB).all()
+                db.close()
 
-            if not positions:
-                st.warning("Nessuna posizione nel portafoglio")
-            else:
-                total_value = 0.0
-                total_cost = 0.0
-                returns = []
-
-                for pos in positions:
-                    try:
-                        data = yf.Ticker(pos.ticker).history(period="1y")
-                        if not data.empty:
-                            current_price = data['Close'].iloc[-1]
-                            current_value = current_price * pos.quantity
-                            total_value += current_value
-                            total_cost += pos.quantity * pos.cost_basis
-
-                            daily_ret = data['Close'].pct_change().dropna()
-                            returns.append(daily_ret)
-                    except:
-                        pass
-
-                if total_cost > 0:
-                    total_return_pct = (total_value - total_cost) / total_cost * 100
-
-                    if returns:
-                        all_returns = pd.concat(returns)
-                        volatility = all_returns.std() * np.sqrt(252) * 100
-                        sharpe = ((total_return_pct / 100) - RISK_FREE_RATE) / (volatility / 100) if volatility > 0 else 0
-
-                        col1, col2, col3 = st.columns(3)
-                        with col1:
-                            st.metric("Valore Totale Portafoglio", f"€ {total_value:,.2f}", f"{total_return_pct:.1f}%")
-                        with col2:
-                            st.metric("Volatilità Annualizzata", f"{volatility:.1f}%")
-                        with col3:
-                            st.metric("Sharpe Ratio", f"{sharpe:.2f}")
-
-                        st.metric("CAGR (approssimativo)", f"{total_return_pct:.1f}%")
-
+                if not positions:
+                    st.warning("Nessuna posizione nel portafoglio")
                 else:
-                    st.info("Impossibile calcolare le metriche")
+                    total_value = 0.0
+                    total_cost = 0.0
+                    portfolio_returns = []   # Lista ponderata
 
-        except Exception as e:
-            st.error(f"Errore calcolo automatico: {e}")
+                    for pos in positions:
+                        try:
+                            data = yf.Ticker(pos.ticker).history(period="1y")
+                            if not data.empty:
+                                current_price = data['Close'].iloc[-1]
+                                current_value = current_price * pos.quantity
+                                total_value += current_value
+                                total_cost += pos.quantity * pos.cost_basis
 
-    # Pulsante per ricalcolare manualmente
-    if st.button("Ricalcola Metriche", type="primary"):
-        st.rerun()
+                                # Rendimenti ponderati per peso posizione
+                                weight = (pos.quantity * pos.cost_basis) / total_cost if total_cost > 0 else 0
+                                daily_ret = data['Close'].pct_change().dropna() * weight
+                                portfolio_returns.append(daily_ret)
+                        except:
+                            pass
 
-st.caption("Sprint 4 completato")
+                    if total_cost > 0:
+                        total_return_pct = (total_value - total_cost) / total_cost * 100
+
+                        if portfolio_returns:
+                            # Volatilità corretta del portafoglio
+                            all_port_returns = pd.concat(portfolio_returns, axis=1).sum(axis=1)
+                            volatility = all_port_returns.std() * np.sqrt(252) * 100
+                            sharpe = ((total_return_pct / 100) - RISK_FREE_RATE) / (volatility / 100) if volatility > 0 else 0
+
+                            col1, col2, col3 = st.columns(3)
+                            with col1:
+                                st.metric("Valore Totale Portafoglio", f"€ {total_value:,.2f}", f"{total_return_pct:.1f}%")
+                            with col2:
+                                st.metric("Volatilità Annualizzata", f"{volatility:.1f}%")
+                            with col3:
+                                st.metric("Sharpe Ratio", f"{sharpe:.2f}")
+
+                            st.metric("CAGR (approssimativo)", f"{total_return_pct:.1f}%")
+
+            except Exception as e:
+                st.error(f"Errore calcolo metriche: {e}")
+
+st.caption("Sprint 4 completato - Volatilità corretta")
