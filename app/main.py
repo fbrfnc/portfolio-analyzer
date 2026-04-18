@@ -10,8 +10,12 @@ from sqlalchemy.orm import Session
 import plotly.express as px
 import plotly.graph_objects as go
 
-# Inizializzazione database robusta
-init_db()
+@st.cache_resource(show_spinner=False)
+def initialize_db():
+    init_db()
+
+# Inizializzazione database robusta (chiamata una volta per sessione)
+initialize_db()
 
 st.set_page_config(page_title=APP_TITLE, page_icon=APP_ICON, layout="wide")
 
