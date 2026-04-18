@@ -214,6 +214,13 @@ else:
                             volatility = all_returns.std() * np.sqrt(252) * 100
                             sharpe = ((total_return_pct / 100) - RISK_FREE_RATE) / (volatility / 100) if volatility > 0 else 0
 
+                            # Calcolo CAGR corretto
+                            start_date = max([df.index.min() for df in history_data.values()])
+                            end_date = min([df.index.max() for df in history_data.values()])
+                            days = (end_date - start_date).days
+                            years = days / 365.25
+                            cagr = (1 + total_return_pct / 100) ** (1 / years) - 1 if years > 0 else 0
+
                             col1, col2, col3 = st.columns(3)
                             with col1:
                                 st.metric("Valore Totale Portafoglio", f"€ {total_value:,.2f}", f"{total_return_pct:.1f}%")
@@ -222,7 +229,7 @@ else:
                             with col3:
                                 st.metric("Sharpe Ratio", f"{sharpe:.2f}")
 
-                            st.metric("CAGR (approssimativo)", f"{total_return_pct:.1f}%")
+                            st.metric("CAGR (approssimativo)", f"{cagr * 100:.1f}%")
 
                     # ==================== GRAFICI ====================
                     st.subheader("Grafici")

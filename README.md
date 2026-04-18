@@ -2,7 +2,7 @@
 
 Applicazione desktop per l'analisi e il monitoraggio di portafogli di investimento (Azioni, ETF, Fondi).
 
-**Stato attuale:** Sprint 1.5 completato
+**Stato attuale:** Sprint 4.5 completato – Grafici aggiunti
 
 ## Requisiti
 
@@ -97,6 +97,8 @@ streamlit run app\main.py
 - Grafici interattivi
 - Avvio rapido con `start.bat`
 - Documentazione base
+
+### Prossimi step
 
 **Mancante (opzionale):**
 - Packaging in .exe stabile (abbiamo provato più volte, ma Streamlit + PyInstaller è instabile)
