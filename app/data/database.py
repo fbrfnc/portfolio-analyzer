@@ -21,10 +21,10 @@ def init_db():
                 session.add(default)
                 session.commit()
         
-        print("✅ Database inizializzato con successo (Sprint 1.5)")
+        print("Database inizializzato con successo (Sprint 1.5)")
         return True
     except Exception as e:
-        print(f"❌ Errore inizializzazione database: {e}")
+        print(f"Errore inizializzazione database: {e}")
         return False
 
 def get_db():
