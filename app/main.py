@@ -247,9 +247,17 @@ else:
                         st.plotly_chart(fig, use_container_width=True)
 
                     # Grafico 2: Allocazione attuale (a torta)
-                    labels = [p.ticker for p in positions]
-                    values = [p.quantity * yf.Ticker(p.ticker).history(period="1d")['Close'].iloc[-1] 
-                              for p in positions if not yf.Ticker(p.ticker).history(period="1d").empty]
+                    labels = []
+                    values = []
+                    for p in positions:
+                        try:
+                            hist = yf.Ticker(p.ticker).history(period="1d")
+                            price = hist['Close'].iloc[-1] if not hist.empty else None
+                        except:
+                            price = None
+                        if price is not None:
+                            labels.append(p.ticker)
+                            values.append(p.quantity * price)
 
                     fig2 = px.pie(names=labels, values=values, title="Allocazione Portafoglio")
                     st.plotly_chart(fig2, use_container_width=True)
