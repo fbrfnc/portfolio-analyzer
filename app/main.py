@@ -179,12 +179,12 @@ elif pagina == "📋 Gestione Posizioni":
         else:
             st.info("Nessuna posizione da eliminare.")
 
-# ====================== METRICHE + GRAFICI ======================
+# ====================== METRICHE + GRAFICI MIGLIORATI ======================
 else:
     st.header("📊 Metriche di Performance e Rischio")
 
     if st.button("Calcola Metriche e Grafici", type="primary"):
-        with st.spinner("Calcolo e generazione grafici..."):
+        with st.spinner("Calcolo metriche e generazione grafici..."):
             try:
                 db = SessionLocal()
                 positions = db.query(PositionDB).all()
@@ -200,10 +200,7 @@ else:
 
                     for pos in positions:
                         try:
-                            # Scarichiamo i dati senza timezone issues
-                            ticker_obj = yf.Ticker(pos.ticker)
-                            data = ticker_obj.history(period="1y")
-                            
+                            data = yf.Ticker(pos.ticker).history(period="1y")
                             if not data.empty:
                                 # Rimuoviamo timezone per evitare errori
                                 data.index = data.index.tz_localize(None)
@@ -216,10 +213,9 @@ else:
                                 daily_ret = data['Close'].pct_change().dropna()
                                 returns.append(daily_ret)
 
-                                # Salviamo lo storico per i grafici
                                 history_data[pos.ticker] = data['Close']
-                        except Exception as e:
-                            st.warning(f"Problema con {pos.ticker}: {e}")
+                        except:
+                            pass
 
                     if total_cost > 0:
                         total_return_pct = (total_value - total_cost) / total_cost * 100
@@ -239,12 +235,12 @@ else:
 
                             st.metric("CAGR (approssimativo)", f"{total_return_pct:.1f}%")
 
-                    # ==================== GRAFICI ====================
+                    # ==================== GRAFICI MIGLIORATI ====================
+
                     st.subheader("Grafici")
 
-                    # Grafico Evoluzione Valore Portafoglio
+                    # Grafico 1: Evoluzione Valore Portafoglio
                     if history_data:
-                        # Creiamo un DataFrame con date comuni
                         all_dates = pd.Index([])
                         for series in history_data.values():
                             all_dates = all_dates.union(series.index)
@@ -258,32 +254,73 @@ else:
                                 portfolio_value += aligned * pos.quantity
 
                         fig = go.Figure()
-                        fig.add_trace(go.Scatter(x=portfolio_value.index, y=portfolio_value.values, 
-                                               mode='lines', name='Valore Portafoglio', line=dict(color='#00ff88')))
-                        fig.update_layout(title="Evoluzione Valore Portafoglio", 
-                                        xaxis_title="Data", 
-                                        yaxis_title="Valore (€)",
-                                        template="plotly_dark")
+                        fig.add_trace(go.Scatter(
+                            x=portfolio_value.index, 
+                            y=portfolio_value.values,
+                            mode='lines',
+                            name='Valore Portafoglio',
+                            line=dict(color='#00ff88', width=2.5)
+                        ))
+                        fig.update_layout(
+                            title="Evoluzione Valore del Portafoglio nel Tempo",
+                            xaxis_title="Data",
+                            yaxis_title="Valore (€)",
+                            template="plotly_dark",
+                            height=500
+                        )
                         st.plotly_chart(fig, use_container_width=True)
 
-                    # Grafico Allocazione a Torta
+                    # Grafico 2: Allocazione a Torta (migliorato)
                     if history_data:
                         labels = []
                         values = []
+                        colors = ['#00ff88', '#ff0088', '#0088ff', '#ffff00', '#ff8800']
+
                         for pos in positions:
                             try:
                                 current_price = yf.Ticker(pos.ticker).history(period="1d")['Close'].iloc[-1]
                                 values.append(current_price * pos.quantity)
-                                labels.append(pos.ticker)
+                                labels.append(f"{pos.ticker} ({pos.asset_type})")
                             except:
                                 pass
 
                         if values:
-                            fig2 = px.pie(names=labels, values=values, title="Allocazione Attuale del Portafoglio")
-                            fig2.update_traces(textinfo='percent+label')
+                            fig2 = px.pie(
+                                names=labels, 
+                                values=values, 
+                                title="Allocazione Attuale del Portafoglio",
+                                color_discrete_sequence=colors
+                            )
+                            fig2.update_traces(textinfo='percent+label', textfont_size=14)
+                            fig2.update_layout(height=500, template="plotly_dark")
                             st.plotly_chart(fig2, use_container_width=True)
+
+                    # Grafico 3: Rendimento vs Volatilità (scatter semplice)
+                    st.subheader("Rendimento vs Volatilità")
+                    if len(positions) > 1:
+                        tickers = [p.ticker for p in positions]
+                        rets = []
+                        vols = []
+                        for t in tickers:
+                            try:
+                                data = yf.Ticker(t).history(period="1y")['Close']
+                                ret = (data.iloc[-1] / data.iloc[0] - 1) * 100
+                                vol = data.pct_change().std() * np.sqrt(252) * 100
+                                rets.append(ret)
+                                vols.append(vol)
+                            except:
+                                pass
+                        
+                        fig3 = px.scatter(
+                            x=vols, y=rets,
+                            text=tickers,
+                            title="Rendimento vs Volatilità (1 anno)",
+                            labels={"x": "Volatilità (%)", "y": "Rendimento (%)"}
+                        )
+                        fig3.update_layout(template="plotly_dark", height=400)
+                        st.plotly_chart(fig3, use_container_width=True)
 
             except Exception as e:
                 st.error(f"Errore durante il calcolo: {e}")
 
-st.caption("Sprint 4.5 - Metriche + Grafici completati")
+st.caption("Sprint 4.5 - Metriche + Grafici migliorati")
