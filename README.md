@@ -1,14 +1,68 @@
 # Portfolio Analyzer
 
-Applicazione desktop per l'analisi e il monitoraggio di portafogli di investimento (Azioni, ETF, Fondi).
+**Applicazione desktop per l'analisi e il monitoraggio di portafogli di investimento**  
+(Azioni, ETF e Fondi comuni)
 
-**Stato attuale:** Sprint 4.5 completato – Grafici aggiunti
+**Versione MVP 1.0 completata** – 18 aprile 2026
+
+## Funzionalità del MVP
+
+- Gestione completa delle posizioni (Aggiungi, Lista, Modifica, Elimina)
+- Recupero prezzi reali da yfinance
+- Calcolo automatico del Valore Corrente del portafoglio
+- Metriche di Performance: Total Return, CAGR
+- Metriche di Rischio: Volatilità annualizzata, Sharpe Ratio
+- Grafici interattivi con Plotly:
+  - Evoluzione storica del valore del portafoglio
+  - Allocazione a torta
+  - Rendimento vs Volatilità delle posizioni
 
 ## Requisiti
 
 - Python 3.12
-- Windows 11 (testato)
+- Windows 11
 
+## Installazione e Avvio
+
+**Metodo consigliato (più semplice):**
+
+1. Fai **doppio clic** sul file `start.bat` presente nella root del progetto.
+
+**Metodo alternativo (PowerShell):**
+
+```powershell
+cd "C:\Users\fbrfn\Github\AnalisiPortafoglio\portfolio-analyzer"
+.\venv\Scripts\Activate.ps1
+streamlit run app\main.py
+Struttura del Progetto
+textportfolio-analyzer/
+├── app/                 # Codice principale Streamlit
+├── data/                # Database SQLite (portfolio.db)
+├── start.bat            # Avvio rapido (consigliato)
+├── requirements.txt
+├── README.md
+└── SPECIFICHE_PROGETTO.md
+Roadmap completata
+
+Sprint 0 → Setup e struttura
+Sprint 1.5 → Cleanup, documentazione e avvio rapido
+Sprint 2 → CRUD Posizioni completo
+Sprint 3 → Valore Corrente con yfinance
+Sprint 4 → Metriche di performance e rischio
+Sprint 4.5 → Grafici interattivi Plotly
+
+MVP concluso con successo.
+Note
+
+Tutti i dati rimangono sul tuo PC (nessun dato viene inviato esternamente).
+La prima esecuzione può essere lenta (caricamento moduli di Streamlit e yfinance).
+Per chiudere la applicazione, chiudi il browser e la finestra di comando.
+
+Limitazioni note
+
+Dati fondi comuni: inserimento manuale o CSV (yfinance ha copertura limitata)
+Packaging in .exe non stabile con Streamlit (problema noto)
+Il calcolo della volatilità è ponderato, ma non include correlazioni avanzate tra asset
 ## Installazione
 
 ```powershell
@@ -97,13 +151,6 @@ streamlit run app\main.py
 - Grafici interattivi
 - Avvio rapido con `start.bat`
 - Documentazione base
-
-### Prossimi step
-
-**Mancante (opzionale):**
-- Packaging in .exe stabile (abbiamo provato più volte, ma Streamlit + PyInstaller è instabile)
-- Test automatici
-- Ottimizzazioni avanzate
 
 ---
 
