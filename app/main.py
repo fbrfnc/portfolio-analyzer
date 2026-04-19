@@ -200,8 +200,14 @@ else:
 
                     for pos in positions:
                         try:
-                            data = yf.Ticker(pos.ticker).history(period="1y")
+                            # Scarichiamo i dati senza timezone issues
+                            ticker_obj = yf.Ticker(pos.ticker)
+                            data = ticker_obj.history(period="1y")
+                            
                             if not data.empty:
+                                # Rimuoviamo timezone per evitare errori
+                                data.index = data.index.tz_localize(None)
+                                
                                 current_price = data['Close'].iloc[-1]
                                 current_value = current_price * pos.quantity
                                 total_value += current_value
@@ -210,10 +216,10 @@ else:
                                 daily_ret = data['Close'].pct_change().dropna()
                                 returns.append(daily_ret)
 
-                                # Salva storico per grafici
+                                # Salviamo lo storico per i grafici
                                 history_data[pos.ticker] = data['Close']
-                        except:
-                            pass
+                        except Exception as e:
+                            st.warning(f"Problema con {pos.ticker}: {e}")
 
                     if total_cost > 0:
                         total_return_pct = (total_value - total_cost) / total_cost * 100
@@ -223,13 +229,6 @@ else:
                             volatility = all_returns.std() * np.sqrt(252) * 100
                             sharpe = ((total_return_pct / 100) - RISK_FREE_RATE) / (volatility / 100) if volatility > 0 else 0
 
-                            # Calcolo CAGR corretto
-                            start_date = max([df.index.min() for df in history_data.values()])
-                            end_date = min([df.index.max() for df in history_data.values()])
-                            days = (end_date - start_date).days
-                            years = days / 365.25
-                            cagr = (1 + total_return_pct / 100) ** (1 / years) - 1 if years > 0 else 0
-
                             col1, col2, col3 = st.columns(3)
                             with col1:
                                 st.metric("Valore Totale Portafoglio", f"€ {total_value:,.2f}", f"{total_return_pct:.1f}%")
@@ -238,47 +237,53 @@ else:
                             with col3:
                                 st.metric("Sharpe Ratio", f"{sharpe:.2f}")
 
-                            st.metric("CAGR (approssimativo)", f"{cagr * 100:.1f}%")
+                            st.metric("CAGR (approssimativo)", f"{total_return_pct:.1f}%")
 
                     # ==================== GRAFICI ====================
                     st.subheader("Grafici")
 
-                    # Grafico 1: Evoluzione valore portafoglio (approssimativo)
+                    # Grafico Evoluzione Valore Portafoglio
                     if history_data:
-                        # Creiamo un indice temporale comune
-                        dates = pd.date_range(start=max([df.index.min() for df in history_data.values()]),
-                                              end=min([df.index.max() for df in history_data.values()]), freq='D')
-                        
-                        portfolio_value = pd.Series(0, index=dates)
+                        # Creiamo un DataFrame con date comuni
+                        all_dates = pd.Index([])
+                        for series in history_data.values():
+                            all_dates = all_dates.union(series.index)
+
+                        portfolio_value = pd.Series(0.0, index=all_dates)
+
                         for ticker, price_series in history_data.items():
-                            # Trova la posizione corrispondente
                             pos = next((p for p in positions if p.ticker == ticker), None)
                             if pos:
-                                portfolio_value += price_series.reindex(dates, method='ffill') * pos.quantity
+                                aligned = price_series.reindex(all_dates, method='ffill')
+                                portfolio_value += aligned * pos.quantity
 
                         fig = go.Figure()
                         fig.add_trace(go.Scatter(x=portfolio_value.index, y=portfolio_value.values, 
-                                               mode='lines', name='Valore Portafoglio'))
-                        fig.update_layout(title="Evoluzione Valore Portafoglio", xaxis_title="Data", yaxis_title="Valore (€)")
+                                               mode='lines', name='Valore Portafoglio', line=dict(color='#00ff88')))
+                        fig.update_layout(title="Evoluzione Valore Portafoglio", 
+                                        xaxis_title="Data", 
+                                        yaxis_title="Valore (€)",
+                                        template="plotly_dark")
                         st.plotly_chart(fig, use_container_width=True)
 
-                    # Grafico 2: Allocazione attuale (a torta)
-                    labels = []
-                    values = []
-                    for p in positions:
-                        try:
-                            hist = yf.Ticker(p.ticker).history(period="1d")
-                            price = hist['Close'].iloc[-1] if not hist.empty else None
-                        except:
-                            price = None
-                        if price is not None:
-                            labels.append(p.ticker)
-                            values.append(p.quantity * price)
+                    # Grafico Allocazione a Torta
+                    if history_data:
+                        labels = []
+                        values = []
+                        for pos in positions:
+                            try:
+                                current_price = yf.Ticker(pos.ticker).history(period="1d")['Close'].iloc[-1]
+                                values.append(current_price * pos.quantity)
+                                labels.append(pos.ticker)
+                            except:
+                                pass
 
-                    fig2 = px.pie(names=labels, values=values, title="Allocazione Portafoglio")
-                    st.plotly_chart(fig2, use_container_width=True)
+                        if values:
+                            fig2 = px.pie(names=labels, values=values, title="Allocazione Attuale del Portafoglio")
+                            fig2.update_traces(textinfo='percent+label')
+                            st.plotly_chart(fig2, use_container_width=True)
 
             except Exception as e:
-                st.error(f"Errore: {e}")
+                st.error(f"Errore durante il calcolo: {e}")
 
 st.caption("Sprint 4.5 - Metriche + Grafici completati")
